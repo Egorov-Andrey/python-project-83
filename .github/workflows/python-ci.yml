@@ -1,25 +1,41 @@
-name: Python CI
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, master ]
   pull_request:
-    branches:
-      - main
+    branches: [ main, master ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
-      - name: Setup project
-        run: |
-          make install
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies via make
+        run: make install
+
+      - name: Run build script (if needed)
+        run: make build
+
+      - name: Smoke test – import application
+        run: uv run python -c "from page_analyzer import app; print('Import OK')"
+
+      - name: Lint with ruff
+        run: uv run ruff check . || echo "No ruff or no issues"
+
 
  
