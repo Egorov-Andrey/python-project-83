@@ -8,13 +8,23 @@
   </head>
   <body>
     <div class="d-flex justify-content-center" style="min-height: 100vh;">
-        <form class="w-50" style="max-width: 600px;">
+        <form class="w-50" style="max-width: 600px;" action="{{ url_for('urls_post') }}" method="post">
             <h2>Анализатор страниц</h2>
             <h5>Бесплатно проверяйте сайты на SEO-пригодность</h5>
+              {% if messages %}
+              <ul class=flashes>
+              {% for category, message in messages %}
+                <li class="{{ category }}">{{ message }}</li>
+              {% endfor %}
+              </ul>
+            {% endif %}
         <div class="input-group">
-            <input type="text" class="form-control" placeholder="https://www.example.com">
+            <input type="text" name="url" class="form-control" placeholder="https://www.example.com">
             <button class="btn btn-primary" type="submit">Проверить</button>
         </div>
+            {% if error %}
+            <div>{{ error }}</div>
+            {% endif %}
         </form>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>

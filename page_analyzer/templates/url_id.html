@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализатор страниц</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+</head>
+<body>
+<h3>Сайт: {{ url }} </h3>
+ <table class="table" data-test="url">
+  <tbody>
+    <tr>
+      <td>ID</td>
+      <td>{{ id }}</td>
+    </tr>
+    <tr>
+      <td>Имя</td>
+      <td>{{ url }}</td>
+    </tr>
+    <tr>
+      <td>Дата создания</td>
+      <td>{{ created_at }}</td>
+    </tr>
+  </tbody>
+</table>
+<h3>Проверки</h3>
+<button type="button" class="btn btn-primary">Начать проверку</button>
+<table class="table" data-test="url">
+  <thead>
+    <tr>
+      <th scope="col">ID</th>
+      <th scope="col">Код ответа</th>
+      <th scope="col">h1</th>
+      <th scope="col">title</th>
+      <th scope="col">description</th>
+      <th scope="col">Дата создания</th>
+    </tr>
+  </thead>
+  <tbody>
+ 
+  </tbody>
+  </table>
+</body>
+</html>
