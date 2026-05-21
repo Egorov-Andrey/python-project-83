@@ -15,12 +15,37 @@ from flask import (
     
 )
 
-load_dotenv()
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-DATABASE_URL = os.getenv('DATABASE_URL')
+if os.path.exists('.env'):
+    load_dotenv()
+    print("Loaded environment from .env file")
 
-conn = psycopg2.connect(DATABASE_URL)
+app = Flask(__name__)
+
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if os.getenv('RENDER'):
+        SECRET_KEY = os.urandom(24)
+        print('Generated random SECRET_KEY for Render')
+    else:
+        raise ValueError ('SECRET_KEY environment variable is not set. Create .env file with SECRET_KEY=your-secret-key')
+
+app.config['SECRET_KEY'] = SECRET_KEY
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is not set.\n"
+        "For local development: create .env file with DATABASE_URL=postgresql://localhost/your_db\n"
+        "For Render: add DATABASE_URL in Dashboard -> Environment Variables"
+    )
+
+try:
+    conn = psycopg2.connect(DATABASE_URL)
+    print("Successfully connected to database")
+except Exception as e:
+    print(f"Failed to connect to database: {e}")
+    print(f"DATABASE_URL: {DATABASE_URL.replace(DATABASE_URL.split('@')[0].split('://')[1].split(':')[0], '***') if '@' in DATABASE_URL else 'invalid'}")
+    raise
 
 @app.route('/')
 def page_analyzer():
