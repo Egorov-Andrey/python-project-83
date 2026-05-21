@@ -13,6 +13,22 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
 
+    # Добавляем сервис PostgreSQL
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,14 +44,36 @@ jobs:
       - name: Install dependencies via make
         run: make install
 
+      # Ждём, пока PostgreSQL полностью запустится
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U test_user; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      # Создаём схему БД (если нужна)
+      - name: Setup database schema
+        run: |
+          PGPASSWORD=test_password psql -h localhost -U test_user -d test_db -f database.sql
+        env:
+          PGPASSWORD: test_password
+        continue-on-error: true  # Если файла database.sql нет
+
       - name: Run build script (if needed)
         run: make build
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-secret-key-for-testing
 
       - name: Smoke test – import application
         run: uv run python -c "from page_analyzer import app; print('Import OK')"
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-secret-key-for-testing
 
       - name: Lint with ruff
         run: uv run ruff check . || echo "No ruff or no issues"
-
-
- 
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-secret-key-for-testing
