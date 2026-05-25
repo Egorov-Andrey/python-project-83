@@ -91,8 +91,11 @@ def index_urls():
 
 @app.route("/urls/<id>")
 def urls_show(id):
+    messages = get_flashed_messages(with_categories=True)
+    print(messages)
     with conn.cursor() as cursor:
-        cursor.execute("SELECT name, created_at FROM urls WHERE id=%s;", (id,))
+        cursor.execute("SELECT name, created_at FROM urls WHERE id=%s;", (id,),
+                       )
         result_tuple = cursor.fetchone()
         url = (result_tuple[0]).strip()
         created_at = result_tuple[1]
@@ -103,4 +106,19 @@ def urls_show(id):
         url=url,
         created_at=created_at
     )
+
+@app.post("/urls/<id>/checks")
+def url_check(id):
+    with conn.cursor() as cursor:
+        try:
+            cursor.execute("INSERT INTO url_checks (url_id, created_at) VALUES (%s, %s)", \
+            (id, datetime.datetime.now(),))
+            conn.commit()
+            flash("Страница успешно проверена", 'success')
+        except psycopg2.Error:
+            conn.rollback()
+            flash("Произошла ошибка при проверке", 'danger')
+        
+    return redirect(url_for("urls_show", id=id))
+
 
