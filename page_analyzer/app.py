@@ -2,14 +2,16 @@ from dotenv import load_dotenv
 import os
 import psycopg2
 import datetime
+import requests
+from bs4 import BeautifulSoup
 from validators import url
 from urllib.parse import urlsplit
 from flask import (
     Flask,
     flash,
     render_template,
-    request,
     url_for,
+    request,
     redirect,
     get_flashed_messages
     
@@ -81,12 +83,14 @@ def urls_post():
 @app.route("/urls")
 def index_urls():
     with conn.cursor() as cursor:
-        cursor.execute("SELECT * FROM urls;")
+        cursor.execute("SELECT" \
+        " urls.id, name, urls.created_at, url_checks.status_code FROM urls" \
+        " LEFT JOIN url_checks ON urls.id = url_checks.url_id ")
         urls = cursor.fetchall()
 
     return render_template(
         "index_urls.html",
-        urls=urls
+        urls=urls,
     )
 
 @app.route("/urls/<id>")
@@ -94,30 +98,87 @@ def urls_show(id):
     messages = get_flashed_messages(with_categories=True)
     print(messages)
     with conn.cursor() as cursor:
-        cursor.execute("SELECT name, created_at FROM urls WHERE id=%s;", (id,),
-                       )
+        cursor.execute("SELECT" \
+        " name, url_checks.created_at, url_checks.status_code, url_checks.h1, url_checks.title, url_checks.description FROM urls" \
+        " LEFT JOIN url_checks ON urls.id = url_checks.url_id WHERE urls.id=%s;", (id,),)
         result_tuple = cursor.fetchone()
         url = (result_tuple[0]).strip()
         created_at = result_tuple[1]
+        status_code = result_tuple[2]
+        h1 = result_tuple[3]
+        title = result_tuple[4]
+        description = result_tuple[5]
 
     return render_template(
         "url_id.html",
         id=id,
         url=url,
-        created_at=created_at
+        created_at=created_at,
+        status_code=status_code,
+        h1=h1,
+        title=title,
+        description=description,
+        messages=messages
     )
 
 @app.post("/urls/<id>/checks")
 def url_check(id):
+        
     with conn.cursor() as cursor:
         try:
-            cursor.execute("INSERT INTO url_checks (url_id, created_at) VALUES (%s, %s)", \
-            (id, datetime.datetime.now(),))
+            cursor.execute("SELECT name FROM urls WHERE id=%s", (id, ))
+            result = cursor.fetchone()
+            if not result:
+                flash("URL не найден", "danger")
+                return redirect(url_for("urls_show", id=id)) 
+            url = result[0]
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            status_code = response.status_code
+            soup = BeautifulSoup(response.text, 'html.parser')
+            soup_h1 = soup.find('h1')
+            if soup_h1:
+                h1 = soup_h1.text.strip()
+                if len(h1) > 200:
+                    h1 = h1[:200] + '...'
+            else:
+                h1 = None
+                flash("h1 не найден", "warning")   
+            soup_title = soup.find('title')
+            if soup_title:
+                title = soup_title.text.strip()
+                if len(title) > 200:
+                    title = h1[:200] + '...'
+            else:
+                title = None
+                flash("soup_title не найден", "warning")
+            soup_desc = soup.find('meta', attrs={'name': 'description'})
+            if soup_desc and soup_desc.get('description'):
+                description = soup_desc['description'].strip()
+                if len(description) > 200:
+                    description = description[:200] + '...'
+            else:
+                description = None
+                flash("description не найден", "warning") 
+            cursor.execute("INSERT INTO" \
+            " url_checks (url_id, status_code, h1, title, description, created_at) VALUES (%s, %s, %s, %s, %s, %s)", \
+            (id, status_code, h1, title, description, datetime.datetime.now(),))
             conn.commit()
             flash("Страница успешно проверена", 'success')
-        except psycopg2.Error:
+        except requests.exceptions.HTTPError as e:
             conn.rollback()
-            flash("Произошла ошибка при проверке", 'danger')
+            if e.response.status_code == 404:
+                flash("Страница не найдена (404)", 'danger')
+            elif e.response.status_code == 500:
+                flash("Внутренняя ошибка сервера (500)", 'danger')
+            else:
+                flash(f"HTTP ошибка: {e}", 'danger')
+        except requests.exceptions.RequestException as e:
+            conn.rollback()
+            flash(f"Ошибка запроса: {e}", 'danger')
+        except psycopg2.Error as e:
+            conn.rollback()
+            flash(f"Ошибка базы данных: {e}", 'danger')
         
     return redirect(url_for("urls_show", id=id))
 
