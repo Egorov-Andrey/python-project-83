@@ -1,21 +1,21 @@
-from dotenv import load_dotenv
-import os
-import psycopg2
 import datetime
+import os
+from urllib.parse import urlsplit
+
+import psycopg2
 import requests
 from bs4 import BeautifulSoup
-from validators import url
-from urllib.parse import urlsplit
+from dotenv import load_dotenv
 from flask import (
     Flask,
     flash,
-    render_template,
-    url_for,
-    request,
+    get_flashed_messages,
     redirect,
-    get_flashed_messages
-    
+    render_template,
+    request,
+    url_for,
 )
+from validators import url
 
 if os.path.exists('.env'):
     load_dotenv()
@@ -29,7 +29,8 @@ if not SECRET_KEY:
         SECRET_KEY = os.urandom(24)
         print('Generated random SECRET_KEY for Render')
     else:
-        raise ValueError ('SECRET_KEY environment variable is not set. Create .env file with SECRET_KEY=your-secret-key')
+        raise ValueError('SECRET_KEY environment variable is not set.'
+        ' Create .env file with SECRET_KEY=your-secret-key')
 
 app.config['SECRET_KEY'] = SECRET_KEY
 
@@ -46,14 +47,17 @@ try:
     print("Successfully connected to database")
 except Exception as e:
     print(f"Failed to connect to database: {e}")
-    print(f"DATABASE_URL: {DATABASE_URL.replace(DATABASE_URL.split('@')[0].split('://')[1].split(':')[0], '***') if '@' in DATABASE_URL else 'invalid'}")
+    print(f"DATABASE_URL: {DATABASE_URL.replace(DATABASE_URL.split('@')[0].split('://')[1].
+    split(':')[0], '***') if '@' in DATABASE_URL else 'invalid'}")
     raise
 
-@app.route('/')
+
+@app.get('/')
 def page_analyzer():
     messages = get_flashed_messages(with_categories=True)
     print(messages)
     return render_template('analyzer_page.html', messages=messages)
+
 
 @app.post('/')
 def urls_post():
@@ -70,7 +74,8 @@ def urls_post():
         )
     with conn.cursor() as cursor:
         try:
-            cursor.execute("INSERT INTO urls (name, created_at) VALUES (%s, %s)",
+            cursor.execute("INSERT INTO urls (name, created_at) VALUES"
+            "(%s, %s)",
             (normalized_url, datetime.datetime.now(),))
             conn.commit()
             flash('URL added successfully', 'success')
@@ -80,11 +85,12 @@ def urls_post():
     
     return redirect(url_for('page_analyzer'), code=302)
 
-@app.route("/urls")
+
+@app.get("/urls")
 def index_urls():
     with conn.cursor() as cursor:
-        cursor.execute("SELECT" \
-        " urls.id, name, urls.created_at, url_checks.status_code FROM urls" \
+        cursor.execute("SELECT" 
+        " urls.id, name, urls.created_at, url_checks.status_code FROM urls" 
         " LEFT JOIN url_checks ON urls.id = url_checks.url_id ")
         urls = cursor.fetchall()
 
@@ -93,14 +99,17 @@ def index_urls():
         urls=urls,
     )
 
-@app.route("/urls/<id>")
+
+@app.get("/urls/<id>")
 def urls_show(id):
     messages = get_flashed_messages(with_categories=True)
     print(messages)
     with conn.cursor() as cursor:
-        cursor.execute("SELECT" \
-        " name, url_checks.created_at, url_checks.status_code, url_checks.h1, url_checks.title, url_checks.description FROM urls" \
-        " LEFT JOIN url_checks ON urls.id = url_checks.url_id WHERE urls.id=%s;", (id,),)
+        cursor.execute("SELECT" 
+        " name, url_checks.created_at, url_checks.status_code, url_checks.h1,"
+        " url_checks.title, url_checks.description FROM urls" 
+        " LEFT JOIN url_checks ON urls.id = url_checks.url_id WHERE urls.id=%s;"
+        , (id,),)
         result_tuple = cursor.fetchone()
         url = (result_tuple[0]).strip()
         created_at = result_tuple[1]
@@ -121,50 +130,75 @@ def urls_show(id):
         messages=messages
     )
 
+
+def get_url_by_id(id):   
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT name FROM urls WHERE id=%s", (id, ))
+        result = cursor.fetchone()
+        if not result:
+            flash("URL не найден", "danger")
+            return redirect(url_for("urls_show", id=id)) 
+        return result[0]
+     
+     
+def parse_page_content(html):
+     
+    soup = BeautifulSoup(html, 'html.parser')
+    soup_h1 = soup.find('h1')
+
+    if soup_h1:
+        h1 = soup_h1.text.strip()
+        if len(h1) > 200:
+            h1 = h1[:200] + '...'
+    else:
+        h1 = None
+        flash("h1 не найден", "warning")
+
+    soup_title = soup.find('title')
+    if soup_title:
+        title = soup_title.text.strip()
+        if len(title) > 200:
+            title = h1[:200] + '...'
+    else:
+        title = None
+        flash("soup_title не найден", "warning")
+
+    soup_desc = soup.find('meta', attrs={'name': 'description'})
+    if soup_desc and soup_desc.get('description'):
+        description = soup_desc['description'].strip()
+        if len(description) > 200:
+            description = description[:200] + '...'
+    else:
+        description = None
+        flash("description не найден", "warning") 
+
+    return h1, title, description
+
+
+def save_check_result(cursor, id, status_code, h1, title, description):
+    cursor.execute("INSERT INTO" 
+        " url_checks (url_id, status_code, h1, title, description,"
+        " created_at) VALUES (%s, %s, %s, %s, %s, %s)", 
+        (id, status_code, h1, title, description, datetime.datetime.now(),))
+    conn.commit()
+    flash("Страница успешно проверена", 'success')
+
+
 @app.post("/urls/<id>/checks")
 def url_check(id):
-        
     with conn.cursor() as cursor:
         try:
-            cursor.execute("SELECT name FROM urls WHERE id=%s", (id, ))
-            result = cursor.fetchone()
-            if not result:
-                flash("URL не найден", "danger")
-                return redirect(url_for("urls_show", id=id)) 
-            url = result[0]
+            url = get_url_by_id(id)
+            if not url:
+                return redirect(url_for("urls_show", id=id))
+            
             response = requests.get(url, timeout=5)
             response.raise_for_status()
-            status_code = response.status_code
-            soup = BeautifulSoup(response.text, 'html.parser')
-            soup_h1 = soup.find('h1')
-            if soup_h1:
-                h1 = soup_h1.text.strip()
-                if len(h1) > 200:
-                    h1 = h1[:200] + '...'
-            else:
-                h1 = None
-                flash("h1 не найден", "warning")   
-            soup_title = soup.find('title')
-            if soup_title:
-                title = soup_title.text.strip()
-                if len(title) > 200:
-                    title = h1[:200] + '...'
-            else:
-                title = None
-                flash("soup_title не найден", "warning")
-            soup_desc = soup.find('meta', attrs={'name': 'description'})
-            if soup_desc and soup_desc.get('description'):
-                description = soup_desc['description'].strip()
-                if len(description) > 200:
-                    description = description[:200] + '...'
-            else:
-                description = None
-                flash("description не найден", "warning") 
-            cursor.execute("INSERT INTO" \
-            " url_checks (url_id, status_code, h1, title, description, created_at) VALUES (%s, %s, %s, %s, %s, %s)", \
-            (id, status_code, h1, title, description, datetime.datetime.now(),))
-            conn.commit()
-            flash("Страница успешно проверена", 'success')
+            
+            h1, title, description = parse_page_content(response.text)
+            save_check_result(cursor, id, response.status_code, h1, title,
+                               description)
+            
         except requests.exceptions.HTTPError as e:
             conn.rollback()
             if e.response.status_code == 404:
@@ -179,7 +213,5 @@ def url_check(id):
         except psycopg2.Error as e:
             conn.rollback()
             flash(f"Ошибка базы данных: {e}", 'danger')
-        
+    
     return redirect(url_for("urls_show", id=id))
-
-
