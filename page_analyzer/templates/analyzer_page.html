@@ -9,7 +9,7 @@
   <body>
     <div class="d-flex justify-content-center" style="min-height: 100vh;">
         <form class="w-50" style="max-width: 600px;" action="{{ url_for('urls_post') }}" method="post">
-            <h2>Анализатор страниц</h2>
+            <h2><a href="{{ url_for('page_analyzer') }}">Анализатор страниц</a></h2>
             <h5>Бесплатно проверяйте сайты на SEO-пригодность</h5>
               {% if messages %}
               <ul class=flashes>
