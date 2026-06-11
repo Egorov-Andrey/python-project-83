@@ -15,7 +15,6 @@ from flask import (
     request,
     url_for,
 )
-from validators import url
 
 if os.path.exists('.env'):
     load_dotenv()
@@ -61,17 +60,26 @@ def page_analyzer():
 
 @app.post('/')
 def urls_post():
-    url_data = request.form['url']
-    parts = urlsplit(url_data)
-    normalized_url = parts.geturl()
-
-    error = url(normalized_url)
-    if not error:
-        error = 'URL not valid'
+    url_data = request.form['url'].strip
+    if not url_data:
+        error = 'URL не может быть пустым'
         return render_template(
             'analyzer_page.html',
             error=error,
         )
+    
+    def normalize_url(url_data):
+
+        if not url_data.startswith(('http://', 'https://')):
+            url_data = 'http://' + url_data
+        
+        parts = urlsplit(url_data)
+
+        normalized_url = f"{parts.scheme}://{parts.netloc}"
+    
+        return normalized_url
+    
+    normalized_url = normalize_url(url_data)
     with conn.cursor() as cursor:
         try:
             cursor.execute("INSERT INTO urls (name) VALUES (%s) RETURNING id",
