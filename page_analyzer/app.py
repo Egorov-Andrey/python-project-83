@@ -78,7 +78,7 @@ def urls_post():
                             (normalized_url,))
             id = cursor.fetchone()[0]
             conn.commit()
-            flash('Страница успешно добавлена', 'success')
+            flash('Страница уже существует', 'success')
             return redirect(url_for('urls_show', id=id))
         except psycopg2.errors.UniqueViolation:
             conn.rollback()
