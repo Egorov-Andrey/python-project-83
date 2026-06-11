@@ -7,6 +7,13 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   </head>
   <body>
+    <!-- Добавьте навигационную панель -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">Анализатор страниц</a>
+      </div>
+    </nav>
+
     <div class="container mt-5">
       <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
@@ -14,15 +21,19 @@
             <h1 class="text-center mb-4">Анализатор страниц</h1>
             <h5 class="text-center mb-4 text-muted">Бесплатно проверяйте сайты на SEO-пригодность</h5>
             
-            {% if messages %}
-              {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                  {{ message }}
-                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-              {% endfor %}
-            {% endif %}
+            <!-- ПРАВИЛЬНОЕ отображение flash сообщений -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
             
+            <!-- Если используете error из контекста, оставьте -->
             {% if error %}
               <div class="alert alert-danger">{{ error }}</div>
             {% endif %}

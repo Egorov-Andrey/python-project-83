@@ -1,6 +1,5 @@
 import datetime
 import os
-from urllib.parse import urlsplit
 
 import psycopg2
 import requests
@@ -16,6 +15,8 @@ from flask import (
     request,
     url_for,
 )
+
+from page_analyzer.normalize_url import normalize_url
 
 if os.path.exists('.env'):
     load_dotenv()
@@ -60,29 +61,19 @@ def page_analyzer():
 
 
 @app.post('/urls')
-def urls_post():
-    def normalize_url(url_data):
-        if not url_data:
-            return ''
-        
-        if not url_data.startswith(('http://', 'https://')):
-            url_data = 'http://' + url_data
-    
-        parts = urlsplit(url_data)
-        return f"{parts.scheme}://{parts.netloc}"
-    
+def urls_post():    
     url_data = request.form.get('url', '').strip()
 
-    if not url_data.startswith(('http://', 'https://')):
-        test_url = 'http://' + url_data
-    else:
-        test_url = url_data
+    if not url_data:
+        flash('URL не может быть пустым', 'danger')
+        return render_template('analyzer_page.html'), 422
 
-    if not validators.url(test_url):
+    normalized_url = normalize_url(url_data)
+
+    if not validators.url(normalized_url):
         flash('Некорректный URL', 'danger')
         return render_template('analyzer_page.html'), 422
      
-    normalized_url = normalize_url(url_data)
     with conn.cursor() as cursor:
         try:
             cursor.execute("INSERT INTO urls (name) VALUES (%s) RETURNING id",
