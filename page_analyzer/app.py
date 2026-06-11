@@ -85,7 +85,7 @@ def urls_post():
             cursor.execute("SELECT id FROM urls WHERE name=%s",
                             (normalized_url, ))
             found_id = cursor.fetchone()[0]
-            flash("Произошла ошибка при проверке", "warning")
+            flash("Страница уже существует", "warning")
             return redirect(url_for('urls_show', id=found_id))
 
 
