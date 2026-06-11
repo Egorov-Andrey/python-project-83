@@ -9,14 +9,12 @@
   <body>
     <div class="d-flex justify-content-center" style="min-height: 100vh;">
         <form class="w-50" style="max-width: 600px;" action="{{ url_for('urls_post') }}" method="post">
-            <h2>Анализатор страниц</h2>
+            <h3>Анализатор страниц</h3>
             <h5>Бесплатно проверяйте сайты на SEO-пригодность</h5>
               {% if messages %}
-              <ul class=flashes>
               {% for category, message in messages %}
-                <li class="{{ category }}">{{ message }}</li>
+                <div class="alert alert-{{ category }}">{{ message }}</div>
               {% endfor %}
-              </ul>
             {% endif %}
         <div class="input-group">
             <input type="text" name="url" class="form-control" placeholder="https://www.example.com">

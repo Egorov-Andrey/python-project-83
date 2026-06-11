@@ -8,11 +8,9 @@
 </head>
 <body>
 {% if messages %}
-  <ul class=flashes>
   {% for category, message in messages %}
     <div class="alert alert-{{ category }}">{{ message }}</div>
   {% endfor %}
-  </ul>
 {% endif %}
 <h3>Сайт: {{ url }} </h3>
  <table class="table" data-test="url">
@@ -59,6 +57,3 @@
   </table>
 </body>
 </html>
-
-
-<div class="alert alert-{{ category }}">{{ message }}</div>
