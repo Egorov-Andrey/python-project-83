@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 
 import psycopg2
 import requests
+import validators
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from flask import (
@@ -58,27 +59,39 @@ def page_analyzer():
     return render_template('analyzer_page.html', messages=messages)
 
 
-@app.post('/')
+@app.post('/urls')
 def urls_post():
-    url_data = request.form.get('url', '').strip()
-    if not url_data:
-        error = 'URL не может быть пустым'
-        return render_template(
-            'analyzer_page.html',
-            error=error,
-        )
-    
-    def normalize_url(url_data):
 
+    def normalize_url(url_data):
+        if not url_data:
+            return ''
+        
         if not url_data.startswith(('http://', 'https://')):
             url_data = 'http://' + url_data
         
         parts = urlsplit(url_data)
+        return f"{parts.scheme}://{parts.netloc}"
 
-        normalized_url = f"{parts.scheme}://{parts.netloc}"
+    def validate_url(url_data):
+        if not url_data or not url_data.strip():
+            return False
+        
+        if not url_data.startswith(('http://', 'https://')):
+            test_url = 'http://' + url_data
+        else:
+            test_url = url_data
+        
+        return validators.url(test_url) is True
+    url_data = request.form.get('url', '').strip()
     
-        return normalized_url
+    if not url_data:
+        flash('URL не может быть пустым', 'danger')
+        return render_template('analyzer_page.html'), 422
     
+    if not validate_url(url_data):
+        flash('Некорректный URL', 'danger')
+        return render_template('analyzer_page.html'), 422
+         
     normalized_url = normalize_url(url_data)
     with conn.cursor() as cursor:
         try:
@@ -155,8 +168,7 @@ def get_url_by_id(id):
         return result[0]
      
      
-def parse_page_content(html):
-     
+def parse_page_content(html):    
     soup = BeautifulSoup(html, 'html.parser')
     soup_h1 = soup.find('h1')
 
