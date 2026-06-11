@@ -74,16 +74,19 @@ def urls_post():
         )
     with conn.cursor() as cursor:
         try:
-            cursor.execute("INSERT INTO urls (name, created_at) VALUES"
-            "(%s, %s)",
-            (normalized_url, datetime.datetime.now(),))
+            cursor.execute("INSERT INTO urls (name) VALUES (%s) RETURNING id",
+                            (normalized_url,))
+            id = cursor.fetchone()[0]
             conn.commit()
-            flash('URL added successfully', 'success')
+            flash('Страница успешно добавлена', 'success')
+            return redirect(url_for('urls_show', id=id))
         except psycopg2.errors.UniqueViolation:
             conn.rollback()
-            flash("This URL already exists", "warning")
-    
-    return redirect(url_for('page_analyzer'), code=302)
+            cursor.execute("SELECT id FROM urls WHERE name=%s",
+                            (normalized_url, ))
+            found_id = cursor.fetchone()[0]
+            flash("Произошла ошибка при проверке", "warning")
+            return redirect(url_for('urls_show', id=found_id))
 
 
 @app.get("/urls")
@@ -215,3 +218,4 @@ def url_check(id):
             flash(f"Ошибка базы данных: {e}", 'danger')
     
     return redirect(url_for("urls_show", id=id))
+
