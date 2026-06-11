@@ -60,7 +60,7 @@ def page_analyzer():
 
 @app.post('/')
 def urls_post():
-    url_data = request.form['url'].strip
+    url_data = request.form.get('url', '').strip()
     if not url_data:
         error = 'URL не может быть пустым'
         return render_template(
