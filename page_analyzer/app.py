@@ -212,7 +212,7 @@ def url_check(id):
             if e.response.status_code == 404:
                 flash("Страница не найдена (404)", 'danger')
             elif e.response.status_code == 500:
-                flash("Внутренняя ошибка сервера (500)", 'danger')
+                flash("Произошла ошибка при проверке", 'danger')
             else:
                 flash(f"HTTP ошибка: {e}", 'danger')
         except requests.exceptions.RequestException as e:
