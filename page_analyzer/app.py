@@ -163,16 +163,14 @@ def parse_page_content(html):
             h1 = h1[:200] + '...'
     else:
         h1 = None
-        flash("h1 не найден", "warning")
 
     soup_title = soup.find('title')
     if soup_title:
         title = soup_title.text.strip()
         if len(title) > 200:
-            title = h1[:200] + '...'
+            title = title[:200] + '...'
     else:
         title = None
-        flash("soup_title не найден", "warning")
 
     soup_desc = soup.find('meta', attrs={'name': 'description'})
     if soup_desc and soup_desc.get('description'):
@@ -181,7 +179,6 @@ def parse_page_content(html):
             description = description[:200] + '...'
     else:
         description = None
-        flash("description не найден", "warning") 
 
     return h1, title, description
 
