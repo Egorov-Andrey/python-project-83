@@ -7,25 +7,41 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   </head>
   <body>
-    <div class="d-flex justify-content-center" style="min-height: 100vh;">
-        <form class="w-50" style="max-width: 600px;" action="{{ url_for('urls_post') }}" method="post">
-            <h3>Анализатор страниц</h3>
-            <h5>Бесплатно проверяйте сайты на SEO-пригодность</h5>
-              {% if messages %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">Анализатор страниц</a>
+      </div>
+    </nav>
+
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+          <form action="{{ url_for('urls_post') }}" method="post">
+            <h1 class="text-center mb-4">Анализатор страниц</h1>
+            <h5 class="text-center mb-4 text-muted">Бесплатно проверяйте сайты на SEO-пригодность</h5>
+            
+            {% if messages %}
               {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">{{ message }}</div>
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
               {% endfor %}
             {% endif %}
-        <div class="input-group">
-            <input type="text" name="url" class="form-control" placeholder="https://www.example.com">
-            <button class="btn btn-primary" type="submit">Проверить</button>
-        </div>
+            
             {% if error %}
-            <div>{{ error }}</div>
+              <div class="alert alert-danger">{{ error }}</div>
             {% endif %}
-        </form>
+            
+            <div class="input-group">
+              <input type="text" name="url" class="form-control" placeholder="https://www.example.com" required>
+              <button class="btn btn-primary" type="submit">Проверить</button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
   </body>
 </html>
-
