@@ -173,10 +173,14 @@ def parse_page_content(html):
         title = None
 
     soup_desc = soup.find('meta', attrs={'name': 'description'})
-    if soup_desc and soup_desc.get('description'):
-        description = soup_desc['description'].strip()
-        if len(description) > 200:
-            description = description[:200] + '...'
+    if soup_desc:
+        description = soup_desc.get('content', '')
+        if description:
+            description = description.strip()
+            if len(description) > 200:
+                description = description[:200] + '...'
+        else:
+            description = None
     else:
         description = None
 
