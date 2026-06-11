@@ -61,37 +61,37 @@ def page_analyzer():
 
 @app.post('/urls')
 def urls_post():
-
     def normalize_url(url_data):
         if not url_data:
             return ''
         
         if not url_data.startswith(('http://', 'https://')):
             url_data = 'http://' + url_data
-        
+    
         parts = urlsplit(url_data)
         return f"{parts.scheme}://{parts.netloc}"
 
     def validate_url(url_data):
         if not url_data or not url_data.strip():
-            return False
+            return False, 'URL не может быть пустым'
         
-        if not url_data.startswith(('http://', 'https://')):
-            test_url = 'http://' + url_data
+        url = url_data.strip()
+    
+        if not url.startswith(('http://', 'https://')):
+            test_url = 'http://' + url
         else:
-            test_url = url_data
-        
-        return validators.url(test_url) is True
+            test_url = url
+        if validators.url(test_url) is True:
+            return True, None
+        else:
+            return False, 'Некорректный URL'
+
     url_data = request.form.get('url', '').strip()
     
-    if not url_data:
-        flash('URL не может быть пустым', 'danger')
-        return render_template('analyzer_page.html'), 422
-    
-    if not validate_url(url_data):
-        flash('Некорректный URL', 'danger')
-        return render_template('analyzer_page.html'), 422
-         
+    is_valid, error_message = validate_url(url_data)
+    if not is_valid:
+        flash(error_message, 'danger')
+        return render_template('analyzer_page.html'), 422     
     normalized_url = normalize_url(url_data)
     with conn.cursor() as cursor:
         try:
