@@ -102,7 +102,10 @@ def index_urls():
     with conn.cursor() as cursor:
         cursor.execute("SELECT" 
         " urls.id, name, urls.created_at, url_checks.status_code FROM urls" 
-        " LEFT JOIN url_checks ON urls.id = url_checks.url_id ")
+        " LEFT JOIN url_checks ON urls.id = url_checks.url_id "
+        "WHERE url_checks.created_at = (" 
+        "SELECT MAX(created_at) FROM url_checks WHERE url_id = urls.id)" 
+        "OR url_checks.created_at IS NULL ORDER BY urls.created_at DESC")
         urls = cursor.fetchall()
 
     return render_template(
