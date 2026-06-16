@@ -7,31 +7,33 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
 </head>
 <body>
-{% if messages %}
-  {% for category, message in messages %}
-    <div class="alert alert-{{ category }}">{{ message }}</div>
-  {% endfor %}
-{% endif %}
-<h3>Сайт: {{ url }} </h3>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+<h3>Сайт: {{ url.name }} </h3>
  <table class="table" data-test="url">
   <tbody>
     <tr>
       <td>ID</td>
-      <td>{{ id }}</td>
+      <td>{{ url.id }}</td>
     </tr>
     <tr>
       <td>Имя</td>
-      <td>{{ url }}</td>
+      <td>{{ url.name }}</td>
     </tr>
     <tr>
       <td>Дата создания</td>
-      <td>{{ created_at }}</td>
+      <td>{{ url.created_at }}</td>
     </tr>
   </tbody>
 </table>
 <h3>Проверки</h3>
-<form method="post" action="{{ url_for('url_check', id=id) }}">
-  <input type="submit" value="Запустить проверку">
+<form method="post" action="{{ url_for('url_check', id=url.id) }}" class="mb-4">
+  <input type="submit" class="btn btn-primary" value="Запустить проверку">
 </form>
 <table class="table" data-test="checks">
   <thead>
@@ -45,14 +47,16 @@
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>{{ id }}</td>
-      <td>{{ status_code }}</td>
-      <td>{{ h1 }}</td>
-      <td>{{ title }}</td>
-      <td>{{ description }}</td>
-      <td>{{ created_at }}</td>
-    </tr>  
+{% for check in checks %}
+  <tr>
+    <td>{{ check.id }}</td>
+    <td>{{ check.status_code or 'None' }}</td>
+    <td>{{ check.h1 or 'None' }}</td>
+    <td>{{ check.title or 'None' }}</td>
+    <td>{{ check.description or 'None' }}</td>
+    <td>{{ check.created_at }}</td>
+  </tr>
+{% endfor %}
   </tbody>
   </table>
 </body>

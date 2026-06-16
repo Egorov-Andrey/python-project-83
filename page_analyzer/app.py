@@ -1,10 +1,7 @@
-import datetime
 import os
 
-import psycopg2
 import requests
 import validators
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from flask import (
     Flask,
@@ -16,7 +13,15 @@ from flask import (
     url_for,
 )
 
-from page_analyzer.normalize_url import normalize_url
+from page_analyzer.database import (
+    add_check,
+    add_url,
+    db_connection,
+    get_all_urls_with_check_last,
+    get_checks_by_url_id,
+    get_url_by_id,
+)
+from page_analyzer.parser import normalize_url, parse_page_content
 
 if os.path.exists('.env'):
     load_dotenv()
@@ -24,33 +29,7 @@ if os.path.exists('.env'):
 
 app = Flask(__name__)
 
-SECRET_KEY = os.getenv('SECRET_KEY')
-if not SECRET_KEY:
-    if os.getenv('RENDER'):
-        SECRET_KEY = os.urandom(24)
-        print('Generated random SECRET_KEY for Render')
-    else:
-        raise ValueError('SECRET_KEY environment variable is not set.'
-        ' Create .env file with SECRET_KEY=your-secret-key')
-
-app.config['SECRET_KEY'] = SECRET_KEY
-
-DATABASE_URL = os.getenv('DATABASE_URL')
-if not DATABASE_URL:
-    raise ValueError(
-        "DATABASE_URL environment variable is not set.\n"
-        "For local development: create .env file with DATABASE_URL=postgresql://localhost/your_db\n"
-        "For Render: add DATABASE_URL in Dashboard -> Environment Variables"
-    )
-
-try:
-    conn = psycopg2.connect(DATABASE_URL)
-    print("Successfully connected to database")
-except Exception as e:
-    print(f"Failed to connect to database: {e}")
-    print(f"DATABASE_URL: {DATABASE_URL.replace(DATABASE_URL.split('@')[0].split('://')[1].
-    split(':')[0], '***') if '@' in DATABASE_URL else 'invalid'}")
-    raise
+app.secret_key = 'SECRET_KEY'
 
 
 @app.get('/')
@@ -73,139 +52,55 @@ def urls_post():
     if not validators.url(normalized_url):
         flash('Некорректный URL', 'danger')
         return render_template('analyzer_page.html'), 422
-     
-    with conn.cursor() as cursor:
-        try:
-            cursor.execute("INSERT INTO urls (name) VALUES (%s) RETURNING id",
-                            (normalized_url,))
-            id = cursor.fetchone()[0]
-            conn.commit()
+
+    with db_connection() as conn:     
+        url_id, is_new = add_url(conn, normalized_url)
+        if is_new:
             flash('Страница успешно добавлена', 'success')
-            return redirect(url_for('urls_show', id=id))
-        except psycopg2.errors.UniqueViolation:
-            conn.rollback()
-            cursor.execute("SELECT id FROM urls WHERE name=%s",
-                            (normalized_url, ))
-            found_id = cursor.fetchone()[0]
+            return redirect(url_for('urls_show', id=url_id))
+        else: 
             flash("Страница уже существует", "warning")
-            return redirect(url_for('urls_show', id=found_id))
+            return redirect(url_for('urls_show', id=url_id))
 
 
 @app.get("/urls")
 def index_urls():
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT" 
-        " urls.id, name, urls.created_at, url_checks.status_code FROM urls" 
-        " LEFT JOIN url_checks ON urls.id = url_checks.url_id "
-        "WHERE url_checks.created_at = (" 
-        "SELECT MAX(created_at) FROM url_checks WHERE url_id = urls.id)" 
-        "OR url_checks.created_at IS NULL ORDER BY urls.created_at DESC")
-        urls = cursor.fetchall()
+    with db_connection() as conn:   
+        urls = get_all_urls_with_check_last(conn)
 
-    return render_template(
-        "index_urls.html",
-        urls=urls,
-    )
+        return render_template("index_urls.html", urls=urls,)
 
 
 @app.get("/urls/<id>")
 def urls_show(id):
     messages = get_flashed_messages(with_categories=True)
     print(messages)
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT" 
-        " name, url_checks.created_at, url_checks.status_code, url_checks.h1,"
-        " url_checks.title, url_checks.description FROM urls" 
-        " LEFT JOIN url_checks ON urls.id = url_checks.url_id WHERE urls.id=%s;"
-        , (id,),)
-        result_tuple = cursor.fetchone()
-        url = (result_tuple[0]).strip()
-        created_at = result_tuple[1]
-        status_code = result_tuple[2]
-        h1 = result_tuple[3]
-        title = result_tuple[4]
-        description = result_tuple[5]
 
-    return render_template(
-        "url_id.html",
-        id=id,
-        url=url,
-        created_at=created_at,
-        status_code=status_code,
-        h1=h1,
-        title=title,
-        description=description,
-        messages=messages
-    )
-
-
-def get_url_by_id(id):   
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT name FROM urls WHERE id=%s", (id, ))
-        result = cursor.fetchone()
-        if not result:
+    with db_connection() as conn:
+        url = get_url_by_id(conn, id)
+        if not url:
             flash("URL не найден", "danger")
-            return redirect(url_for("urls_show", id=id)) 
-        return result[0]
-     
-     
-def parse_page_content(html):    
-    soup = BeautifulSoup(html, 'html.parser')
-    soup_h1 = soup.find('h1')
+            return redirect(url_for("urls_show", id=id))
+        checks = get_checks_by_url_id(conn, id)
 
-    if soup_h1:
-        h1 = soup_h1.text.strip()
-        if len(h1) > 200:
-            h1 = h1[:200] + '...'
-    else:
-        h1 = None
+        return render_template("url_id.html", url=url, checks=checks)
+       
 
-    soup_title = soup.find('title')
-    if soup_title:
-        title = soup_title.text.strip()
-        if len(title) > 200:
-            title = title[:200] + '...'
-    else:
-        title = None
-
-    soup_desc = soup.find('meta', attrs={'name': 'description'})
-    if soup_desc:
-        description = soup_desc.get('content', '')
-        if description:
-            description = description.strip()
-            if len(description) > 200:
-                description = description[:200] + '...'
-        else:
-            description = None
-    else:
-        description = None
-
-    return h1, title, description
-
-
-def save_check_result(cursor, id, status_code, h1, title, description):
-    cursor.execute("INSERT INTO" 
-        " url_checks (url_id, status_code, h1, title, description,"
-        " created_at) VALUES (%s, %s, %s, %s, %s, %s)", 
-        (id, status_code, h1, title, description, datetime.datetime.now(),))
-    conn.commit()
-    flash("Страница успешно проверена", 'success')
-
-
-@app.post("/urls/<id>/checks")
+@app.post("/urls/<int:id>/checks")
 def url_check(id):
-    with conn.cursor() as cursor:
+    with db_connection() as conn:
         try:
-            url = get_url_by_id(id)
+            url = get_url_by_id(conn, id)
             if not url:
                 return redirect(url_for("urls_show", id=id))
             
-            response = requests.get(url, timeout=5)
+            response = requests.get(url["name"], timeout=5)
             response.raise_for_status()
             
             h1, title, description = parse_page_content(response.text)
-            save_check_result(cursor, id, response.status_code, h1, title,
+            add_check(conn, id, response.status_code, h1, title,
                                description)
+            flash("Страница успешно проверена", 'success')
             
         except requests.exceptions.HTTPError as e:
             conn.rollback()
@@ -215,12 +110,6 @@ def url_check(id):
                 flash("Произошла ошибка при проверке", 'danger')
             else:
                 flash(f"HTTP ошибка: {e}", 'danger')
-        except requests.exceptions.RequestException as e:
-            conn.rollback()
-            flash(f"Ошибка запроса: {e}", 'danger')
-        except psycopg2.Error as e:
-            conn.rollback()
-            flash(f"Ошибка базы данных: {e}", 'danger')
     
     return redirect(url_for("urls_show", id=id))
 
