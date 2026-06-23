@@ -29,7 +29,7 @@ if os.path.exists('.env'):
 
 app = Flask(__name__)
 
-app.secret_key = 'SECRET_KEY'
+app.secret_key = os.getenv('SECRET_KEY')
 
 
 @app.get('/')
@@ -68,7 +68,7 @@ def index_urls():
     with db_connection() as conn:   
         urls = get_all_urls_with_check_last(conn)
 
-        return render_template("index_urls.html", urls=urls,)
+        return render_template("index_urls.html", urls=urls)
 
 
 @app.get("/urls/<id>")

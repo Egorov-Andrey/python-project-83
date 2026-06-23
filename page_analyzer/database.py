@@ -48,8 +48,9 @@ def find_url_by_name(conn, normalized_url):
 def add_url(conn, normalized_url):
     try:
         with conn.cursor() as cursor:
-            cursor.execute("INSERT INTO urls (name) VALUES (%s) RETURNING id",
-                            (normalized_url,))
+            cursor.execute("INSERT INTO urls (name, created_at) VALUES (%s, %s)"
+                            " RETURNING id",
+                            (normalized_url, datetime.datetime.now()))
             conn.commit()   
             return cursor.fetchone()[0], True
     except psycopg2.errors.UniqueViolation:
